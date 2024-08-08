@@ -12,6 +12,7 @@
 
 class EcosystemSupervisor {
     friend class Ecosystem;
+    friend class EvolutionGameApp;
 private:
     Ecosystem& ecosystem;
     std::vector<std::list<Creature>> creatures;
@@ -30,13 +31,13 @@ private:
     void checkChunkBounds(std::list<Creature>::iterator& it);
     void readDna(std::list<Creature>::iterator& it);
 
+protected:
     //gamefield procession
-    void processChunk();
+    void processChunk(uint chunk_idx_1);
+    void checkLost(uint i, uint j, uint chunk_idx_1);
     void manageLostOnes();
-    void renderChunk();
+    void renderChunks();
 
 public:
     EcosystemSupervisor(Ecosystem& ecosystem);
-    
-    void doTimeStep();
 };

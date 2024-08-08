@@ -146,3 +146,60 @@ void EcosystemSupervisor::readDna(std::list<Creature>::iterator& it) {
         kill(*it);
     }
 }
+
+void EcosystemSupervisor::processChunk(uint chunk_idx_1) {
+    for (auto it = creatures[chunk_idx_1].begin(); it != creatures[chunk_idx_1].end();) {
+        if ((*it).alive) {
+            readDna(it);
+            ++it;
+        } else {
+            auto erease_it = it;
+            ++it;
+            creatures[chunk_idx_1].erase(erease_it);
+        }
+    }
+} 
+
+void EcosystemSupervisor::checkLost(uint x, uint y, uint chunk_idx_1) {
+    if (ecosystem.cells(x, y) != nullptr) {
+        auto creature = *(ecosystem.cells(x, y));
+        if (creature.chunkIdx[0] != id || creature.chunkIdx[1] != chunk_idx_1) {
+            creature.chunkIdx[0] = id;
+            creature.chunkIdx[1] = chunk_idx_1;
+            creatures[chunk_idx_1].push_front(creature);
+        }
+    }
+}
+    
+void EcosystemSupervisor::manageLostOnes() {
+    for (uint x_pos : {0, 1}) {
+        for (uint y_pos : {0, 1}) {
+            uint chunk_idx_1 = x_pos + 2 * y_pos;
+
+            uint i = xOrigin + xSize / 2 * x_pos;
+            uint j = yOrigin + ySize / 2 * y_pos;
+            for (; i < xOrigin + xSize / 2 + (xSize - xSize / 2) * x_pos; ++i) {
+                checkLost(i, j, chunk_idx_1);
+            }
+            for (; j < yOrigin + ySize / 2 + (ySize - ySize / 2) * y_pos; ++j) {
+                checkLost(i, j, chunk_idx_1);
+            }
+            for (; i >= xOrigin + xSize / 2 * x_pos; --i) {
+                checkLost(i, j, chunk_idx_1);
+            }
+            for (; j >= yOrigin + ySize / 2 * y_pos; --j) {
+                checkLost(i, j, chunk_idx_1);
+            }
+        }
+    }
+}
+
+void EcosystemSupervisor::renderChunks() {
+    for (uint chunk_idx_1 = 0; chunk_idx_1 < 4; ++chunk_idx_1) {
+        for (auto it = creatures[chunk_idx_1].begin(); it != creatures[chunk_idx_1].end(); ++it) {
+            if ((*it).alive) {
+                ecosystem.renderCreature(*it);
+            }
+        }
+    }
+}
