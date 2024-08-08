@@ -39,5 +39,5 @@ protected:
     void renderChunks();
 
 public:
-    EcosystemSupervisor(Ecosystem& ecosystem);
+    EcosystemSupervisor(Ecosystem& ecosystem, uint total_x_size, uint total_y_size, uint thread_rows, uint thread_cols, uint seed);
 };

@@ -203,3 +203,17 @@ void EcosystemSupervisor::renderChunks() {
         }
     }
 }
+
+EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, uint total_x_size, uint total_y_size, uint thread_rows, uint thread_cols, uint seed):
+    ecosystem(ecosystem) {
+    uint threads = thread_rows * thread_cols; 
+    id = omp_get_thread_num();
+
+    xSize = total_x_size / thread_rows;
+    ySize = total_y_size / thread_cols;
+
+    xOrigin = xSize * (id / thread_rows);
+    yOrigin = ySize * (id % thread_rows);
+
+    randGen = SplitMix64(seed + id);
+}
