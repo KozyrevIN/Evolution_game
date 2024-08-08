@@ -2,7 +2,11 @@
 #include "../include/ecosystem.h"
 
 bool Ecosystem::isEmpty(uint x, uint y) {
-    return (cells(x, y) == nullptr);
+    if (x >= 0 && x < cells.rows() && y >= 0 && y < cells.cols()) {
+        return (cells(x, y) == nullptr);
+    } else {
+        return false;
+    }
 }
 
 uint Ecosystem::countEmptyAdjacent(uint x, uint y) {
@@ -12,7 +16,7 @@ uint Ecosystem::countEmptyAdjacent(uint x, uint y) {
             int newX = x + dx;
             int newY = y + dy;
             if (newX >= 0 && newX < cells.rows() && newY >= 0 && newY < cells.cols()) {
-                if (isEmpty(newX, newY)) {
+                if (cells(x, y) == nullptr) {
                     count++;
                 }
             }
@@ -28,7 +32,7 @@ std::vector<std::pair<uint, uint>> Ecosystem::emptyAdjacent(uint x, uint y) {
             int newX = x + dx;
             int newY = y + dy;
             if (newX >= 0 && newX < cells.rows() && newY >= 0 && newY < cells.cols()) {
-                if (isEmpty(newX, newY)) {
+                if (cells(x, y) == nullptr) {
                     emptyCells.push_back(std::pair<uint, uint>(newX, newY));
                 }
             }

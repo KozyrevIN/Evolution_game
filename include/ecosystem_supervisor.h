@@ -17,17 +17,18 @@ private:
     std::vector<std::list<Creature>> creatures;
 
     //supervisor's control region
+    uint id;
     uint xOrigin;
     uint yOrigin;
     uint xSize;
     uint ySize;
 
-    //helper functions
-    splitMix64 randGen;
-    Eigen::Vector2<uint> getChunk(uint x, uint y);
+    //helper structures
+    SplitMix64 randGen;
     void kill(Creature& creature);
-    void addNew(Creature& creature);
-    void readDna(Creature& creature);
+    Eigen::Vector2<uint> getChunkIdx(uint x, uint y);
+    void checkChunkBounds(std::list<Creature>::iterator& it);
+    void readDna(std::list<Creature>::iterator& it);
 
     //gamefield procession
     void processChunk();

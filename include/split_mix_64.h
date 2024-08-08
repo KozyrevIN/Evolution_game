@@ -1,3 +1,7 @@
+#include <cstdint>
+
+using uint = unsigned int;
+
 class SplitMix64 {
 private:
     uint64_t x;
@@ -5,5 +9,5 @@ private:
 public:
     SplitMix64(uint64_t seed);
 
-    uint64_t Next();
+    uint next();
 };
