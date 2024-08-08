@@ -30,14 +30,14 @@ private:
     Eigen::Vector2<uint> getChunkIdx(uint x, uint y);
     void checkChunkBounds(std::list<Creature>::iterator& it);
     void readDna(std::list<Creature>::iterator& it);
+    void checkLost(uint i, uint j, uint chunk_idx_1);
 
 protected:
     //gamefield procession
     void processChunk(uint chunk_idx_1);
-    void checkLost(uint i, uint j, uint chunk_idx_1);
     void manageLostOnes();
     void renderChunks();
 
 public:
-    EcosystemSupervisor(Ecosystem& ecosystem, uint total_x_size, uint total_y_size, uint thread_rows, uint thread_cols, uint seed);
+    EcosystemSupervisor(Ecosystem& ecosystem, uint thread_rows, uint thread_cols, uint seed);
 };

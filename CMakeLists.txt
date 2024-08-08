@@ -15,7 +15,8 @@ add_executable(main
         src/creature.cpp
         src/split_mix_64.cpp
         src/ecosystem.cpp
-        src/ecosystem_supervisor.cpp)
+        src/ecosystem_supervisor.cpp
+        src/evolution_game_app.cpp)
 target_link_libraries(main PRIVATE sfml-graphics)
 target_compile_features(main PRIVATE cxx_std_17)
 

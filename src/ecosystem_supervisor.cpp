@@ -2,6 +2,7 @@
 #include <functional>
 #include <iostream>
 #include <algorithm>
+#include <omp.h>
 
 #define ecosystem_supervisor_header
 #include "../include/ecosystem_supervisor.h"
@@ -137,6 +138,7 @@ void EcosystemSupervisor::readDna(std::list<Creature>::iterator& it) {
     }
 
     uint8_t action = static_cast<uint8_t>(*dna_adaptor);
+    std::cout << (uint)action << " ";
     while ((action < 8 || !(*it).prev) && dna_adaptor != (*it).dna.end()) {
         actions[action](it);
         action = static_cast<uint8_t>(*++dna_adaptor);
@@ -181,15 +183,19 @@ void EcosystemSupervisor::manageLostOnes() {
             for (; i < xOrigin + xSize / 2 + (xSize - xSize / 2) * x_pos; ++i) {
                 checkLost(i, j, chunk_idx_1);
             }
+            --i;
             for (; j < yOrigin + ySize / 2 + (ySize - ySize / 2) * y_pos; ++j) {
                 checkLost(i, j, chunk_idx_1);
             }
-            for (; i >= xOrigin + xSize / 2 * x_pos; --i) {
+            --j;
+            for (; i > xOrigin + xSize / 2 * x_pos; --i) {
                 checkLost(i, j, chunk_idx_1);
             }
-            for (; j >= yOrigin + ySize / 2 * y_pos; --j) {
+            checkLost(i, j, chunk_idx_1);
+            for (; j > yOrigin + ySize / 2 * y_pos; --j) {
                 checkLost(i, j, chunk_idx_1);
             }
+            checkLost(i, j, chunk_idx_1);
         }
     }
 }
@@ -204,16 +210,16 @@ void EcosystemSupervisor::renderChunks() {
     }
 }
 
-EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, uint total_x_size, uint total_y_size, uint thread_rows, uint thread_cols, uint seed):
-    ecosystem(ecosystem) {
+EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, uint thread_rows, uint thread_cols, uint seed):
+    ecosystem(ecosystem), randGen(seed + id) {
     uint threads = thread_rows * thread_cols; 
     id = omp_get_thread_num();
 
-    xSize = total_x_size / thread_rows;
-    ySize = total_y_size / thread_cols;
+    xSize = ecosystem.cells.rows() / thread_rows;
+    ySize = ecosystem.cells.cols() / thread_cols;
 
     xOrigin = xSize * (id / thread_rows);
     yOrigin = ySize * (id % thread_rows);
 
-    randGen = SplitMix64(seed + id);
+    creatures = std::vector<std::list<Creature>>(4, std::list<Creature>());
 }

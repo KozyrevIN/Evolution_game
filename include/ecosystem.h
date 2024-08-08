@@ -8,6 +8,7 @@
 
 class Ecosystem {
     friend class EcosystemSupervisor;
+    friend class EvolutionGameApp;
 protected:
     Eigen::MatrixX<Creature*> cells;
     Eigen::MatrixX<uint32_t> textureCP;
