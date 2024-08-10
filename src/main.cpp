@@ -5,7 +5,7 @@
 int main()
 {   
     //1850, 1011
-    EvolutionGameApp app(80, 80, 5);
+    EvolutionGameApp app(1850, 1011, 1);
     app.run(0);
 
     return 0;

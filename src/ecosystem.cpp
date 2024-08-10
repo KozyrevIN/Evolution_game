@@ -18,7 +18,7 @@ uint Ecosystem::countEmptyAdjacent(uint x, uint y) {
             int newX = x + dx;
             int newY = y + dy;
             if (newX >= 0 && newX < cells.rows() && newY >= 0 && newY < cells.cols()) {
-                if (cells(x, y) == nullptr) {
+                if (cells(newX, newY) == nullptr) {
                     count++;
                 }
             }
@@ -34,7 +34,7 @@ std::vector<std::pair<uint, uint>> Ecosystem::emptyAdjacent(uint x, uint y) {
             int newX = x + dx;
             int newY = y + dy;
             if (newX >= 0 && newX < cells.rows() && newY >= 0 && newY < cells.cols()) {
-                if (cells(x, y) == nullptr) {
+                if (cells(newX, newY) == nullptr) {
                     emptyCells.push_back(std::pair<uint, uint>(newX, newY));
                 }
             }
@@ -54,6 +54,7 @@ void Ecosystem::renderWindow() {
     sprite.setPosition(0, 0);
     window.draw(sprite);
     window.display();
+    textureCP.setZero();
 }
 
 Ecosystem::Ecosystem(uint cells_x, uint cells_y, uint cell_size) {

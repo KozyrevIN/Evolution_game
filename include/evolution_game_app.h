@@ -10,6 +10,7 @@ class EvolutionGameApp {
     friend class Ecosystem;
 private:
     Ecosystem ecosystem;
+    Eigen::MatrixX<std::list<Creature>> externalExchangeBuffer;
 
 public:
     EvolutionGameApp(uint cells_x, uint cells_y, uint cell_size);

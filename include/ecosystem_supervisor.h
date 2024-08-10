@@ -15,10 +15,14 @@ class EcosystemSupervisor {
     friend class EvolutionGameApp;
 private:
     Ecosystem& ecosystem;
+    Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer;
     std::vector<std::list<Creature>> creatures;
 
     //supervisor's control region
     uint id;
+    uint threadRows;
+    uint threadCols;
+
     uint xOrigin;
     uint yOrigin;
     uint xSize;
@@ -26,18 +30,29 @@ private:
 
     //helper structures
     SplitMix64 randGen;
-    void kill(Creature& creature);
-    Eigen::Vector2<uint> getChunkIdx(uint x, uint y);
+
+    //chunk transition mechanism
+    std::vector<std::list<Creature>> internalExchangeBuffer;
+    std::pair<uint, uint> getChunkId(uint x, uint y);
+    void putToInternalBuffer(std::list<Creature>::iterator& it, uint chunk_id_1);
+    void putToExternalBuffer(std::list<Creature>::iterator& it, std::pair<uint, uint> chunk_id);
     void checkChunkBounds(std::list<Creature>::iterator& it);
-    void readDna(std::list<Creature>::iterator& it);
-    void checkLost(uint i, uint j, uint chunk_idx_1);
+
+    //helper functions
+    void kill(Creature& it);
+    void placeNewborn(const std::vector<Action>& parent_dna, const uint32_t parent_color,
+        std::pair<uint, uint> parent_chunk_id, uint x, uint y, int energy);
+    void doAction(std::list<Creature>::iterator& it);
 
 protected:
     //gamefield procession
-    void processChunk(uint chunk_idx_1);
-    void manageLostOnes();
+    void processChunk(uint chunk_id_1);
+    void processExchangeBuffers();
     void renderChunks();
 
+    //starting creature
+    void addFirstLife(const Creature& creature);
+
 public:
-    EcosystemSupervisor(Ecosystem& ecosystem, uint thread_rows, uint thread_cols, uint seed);
+    EcosystemSupervisor(Ecosystem& ecosystem, Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer, uint thread_rows, uint thread_cols, uint seed);
 };

@@ -2,8 +2,9 @@
 #include "../include/creature.h"
 
 //constructor and destructor
-Creature::Creature(std::vector<Action> dna, uint32_t color, int energy, uint x, uint y, uint8_t direction, Eigen::Vector2<uint> chunk_idx):
-    dna(dna), color(color), energy(energy), x(x), y(y), direction(direction), chunkIdx(chunk_idx) {
+Creature::Creature(const std::vector<Action>& dna, uint32_t color, int energy, uint8_t direction, uint x, uint y, std::pair<uint, uint> chunk_id):
+    dna(dna), color(color), energy(energy), x(x), y(y), direction(direction), chunkId(chunk_id) {
+    prev = true;
     alive = true;
-    dnaAdaptor = dna.begin();
+    dnaAdapter = 0;
 }

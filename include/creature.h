@@ -32,12 +32,12 @@ struct Creature {
     uint8_t direction;
 
     //reading dna
-    std::vector<Action>::iterator dnaAdaptor;
-    uint8_t prev;
+    uint dnaAdapter;
+    uint prev;
 
     //creature position in term of supervisors
-    Eigen::Vector2<uint> chunkIdx;
+    std::pair<uint, uint> chunkId;
 
     //constructor
-    Creature(std::vector<Action> dna, uint32_t color, int energy, uint x, uint y, uint8_t direction, Eigen::Vector2<uint> chunk_idx);
+    Creature(const std::vector<Action>& dna, uint32_t color, int energy, uint8_t direction, uint x, uint y, std::pair<uint, uint> chunk_id);
 };

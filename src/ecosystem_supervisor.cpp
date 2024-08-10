@@ -3,117 +3,167 @@
 #include <iostream>
 #include <algorithm>
 #include <omp.h>
+#include <string>
 
 #define ecosystem_supervisor_header
 #include "../include/ecosystem_supervisor.h"
 
-Eigen::Vector2<uint> EcosystemSupervisor::getChunkIdx(uint x, uint y) {
-    Eigen::Vector2<uint> chunk_idx;
-    if (x >= xOrigin && x <= xOrigin + xSize && y >= yOrigin && y <= yOrigin + ySize) {
-        chunk_idx(0) = id;
-        chunk_idx(1) = (uint)(x >= xOrigin + xSize / 2) + 2 * (uint)(y >= yOrigin + ySize / 2);
-    } else {
-        chunk_idx(0) = UINT_MAX;
-    }
-    return chunk_idx;
+//chunk transition mechanism
+std::pair<uint, uint> EcosystemSupervisor::getChunkId(uint x, uint y) {
+    return std::make_pair((x / xSize) * threadCols + (y / ySize), (x - (x / xSize) * xSize) / (xSize / 2) * 2 + (y - (y / ySize) * ySize) / (ySize / 2));
 }
 
+void EcosystemSupervisor::putToInternalBuffer(std::list<Creature>::iterator& it, uint chunk_id_1) {
+    auto erease_it = it++;
+    internalExchangeBuffer[chunk_id_1].push_front(*erease_it);
+    creatures[(*erease_it).chunkId.second].erase(erease_it);
+    auto new_it = internalExchangeBuffer[chunk_id_1].begin();
+    (*new_it).chunkId.second = chunk_id_1;
+    ecosystem.cells((*new_it).x, (*new_it).y) = &(*new_it);
+}
+
+void EcosystemSupervisor::putToExternalBuffer(std::list<Creature>::iterator& it, std::pair<uint, uint> chunk_id) {
+    auto erease_it = it++;
+    externalExchangeBuffer(chunk_id.first, (*erease_it).chunkId.first).push_front(*erease_it);
+    creatures[(*erease_it).chunkId.second].erase(erease_it);
+    auto new_it = externalExchangeBuffer(chunk_id.first, (*erease_it).chunkId.first).begin();
+    (*new_it).chunkId = chunk_id;
+    ecosystem.cells((*new_it).x, (*new_it).y) = &(*new_it);
+}
+
+void EcosystemSupervisor::checkChunkBounds(std::list<Creature>::iterator& it) {
+    auto new_chunk_id = getChunkId((*it).x, (*it).y);
+    if (new_chunk_id == (*it).chunkId) {
+        ++it;
+    } else if (new_chunk_id.first != (*it).chunkId.first) {
+        putToExternalBuffer(it, new_chunk_id);
+    } else if (new_chunk_id.second < (*it).chunkId.second) {
+        auto erease_it = it++;
+        creatures[new_chunk_id.second].push_front(*erease_it);
+        creatures[(*erease_it).chunkId.second].erase(erease_it);
+        auto new_it = creatures[new_chunk_id.second].begin();
+        (*new_it).chunkId = new_chunk_id;
+        ecosystem.cells((*new_it).x, (*new_it).y) = &(*new_it);
+    } else if (new_chunk_id.second > (*it).chunkId.second) {
+        putToInternalBuffer(it, new_chunk_id.second);
+    }
+}
+
+//helper functions
 void EcosystemSupervisor::kill(Creature& creature) {
     ecosystem.cells(creature.x, creature.y) = nullptr;
     creature.alive = false;
 }
 
-void EcosystemSupervisor::checkChunkBounds(std::list<Creature>::iterator& it) {
-    auto chunk_idx = getChunkIdx((*it).x, (*it).y);
-    if (chunk_idx != (*it).chunkIdx) {
-        creatures[(*it).chunkIdx(1)].erase(it);
+std::vector<Action> mutate(const std::vector<Action>& dna) {
+    return dna;
+}
+
+uint32_t mutate(uint32_t color) {
+    return color;
+}
+
+void EcosystemSupervisor::placeNewborn(const std::vector<Action>& parent_dna, const uint32_t parent_color,
+    std::pair<uint, uint> parent_chunk_id, uint x, uint y, int energy) {
+    auto newborn_chunk_id = getChunkId(x, y);
+    if (newborn_chunk_id.first == parent_chunk_id.first) {
+        if (newborn_chunk_id.second <= parent_chunk_id.second) {
+            creatures[newborn_chunk_id.second].emplace_front(
+                mutate(parent_dna), mutate(parent_color), energy, randGen.next() % 4 + 1, x, y, newborn_chunk_id);
+            ecosystem.cells(x, y) = &(*creatures[newborn_chunk_id.second].begin());
+        } else {
+            internalExchangeBuffer[newborn_chunk_id.second].emplace_front(
+                mutate(parent_dna), mutate(parent_color), energy, randGen.next() % 4 + 1, x, y, newborn_chunk_id);
+            ecosystem.cells(x, y) = &(*internalExchangeBuffer[newborn_chunk_id.second].begin());
+        }
+    } else {
+        externalExchangeBuffer(newborn_chunk_id.first, parent_chunk_id.first).emplace_front(
+            mutate(parent_dna), mutate(parent_color), energy, randGen.next() % 4 + 1, x, y, newborn_chunk_id);
+        ecosystem.cells(x, y) = &(*externalExchangeBuffer(newborn_chunk_id.first, parent_chunk_id.first).begin());
     }
 }
 
-void EcosystemSupervisor::readDna(std::list<Creature>::iterator& it) {
-    using leash = std::list<Creature>::iterator&;
-    using action_def = std::function<void(leash)>;
+void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it) {
+    bool move_flag = false;
+
+    using action_def = std::function<void(Creature&)>;
 
     //logical actions
-    action_def nothing = [this](leash it) {
-        (*it).prev = 1;
+    action_def nothing = [this](Creature& creature) {
+        creature.prev = true;
     };
 
-    action_def negation = [this](leash it) {
-        (*it).prev = !(*it).prev;
+    action_def negation = [this](Creature& creature) {
+        creature.prev = !creature.prev;
     };
 
-    action_def comp_1 = [this](leash it) {
-        (*it).prev = (*it).prev > 0;
+    action_def comp_1 = [this](Creature& creature) {
+        creature.prev = creature.prev > 0;
     };
 
-    action_def add_1 = [this](leash it) {
-        ++(*it).prev;
+    action_def add_1 = [this](Creature& creature) {
+        ++creature.prev;
     };
 
-    action_def sub_1 = [this](leash it) {
-        --(*it).prev;
+    action_def sub_1 = [this](Creature& creature) {
+        --creature.prev;
     };
 
-    action_def mul_2 = [this](leash it) {
-        (*it).prev *= 2;
+    action_def mul_2 = [this](Creature& creature) {
+        creature.prev *= 2;
     };
 
-    action_def div_2 = [this](leash it) {
-        (*it).prev /= 2;
+    action_def div_2 = [this](Creature& creature) {
+        creature.prev /= 2;
     };
 
-    action_def random = [this](leash it) {
-        (*it).prev = ((*it).prev > 0) * (randGen.next() % 254 + 1);
+    action_def random = [this](Creature& creature) {
+        creature.prev = (creature.prev > 0) * (randGen.next() % 254 + 1);
     };
 
     //physical actions
-    action_def rotate = [this](leash it) {
-        (*it).direction = ((*it).direction - 1 + (*it).prev) % 4 + 1;
-        (*it).prev = true;
+    action_def rotate = [this](Creature& creature) {
+        creature.direction = (creature.direction - 1 + creature.prev) % 4 + 1;
+        creature.prev = true;
     };
 
-    action_def move_forward = [this](leash it) {
-        uint new_x = (*it).x + ((*it).direction == 1) - ((*it).direction == 3);
-        uint new_y = (*it).y + ((*it).direction == 2) - ((*it).direction == 4);
+    action_def move_forward = [this, &move_flag](Creature& creature) {
+        uint new_x = creature.x + (creature.direction == 1) - (creature.direction == 3);
+        uint new_y = creature.y + (creature.direction == 2) - (creature.direction == 4);
 
         if (ecosystem.isEmpty(new_x, new_y)) {
-            ecosystem.cells((*it).x, (*it).y) = nullptr;
-            (*it).x = new_x;
-            (*it).y = new_y;
-            ecosystem.cells(new_x, new_y) = &(*it);
-            (*it).energy--;
-            checkChunkBounds(it);
-            (*it).prev = true;
+            std::swap(ecosystem.cells(creature.x, creature.y), ecosystem.cells(new_x, new_y));
+            creature.x = new_x;
+            creature.y = new_y;
+            move_flag = true;
         } else {
-            (*it).prev = false;
+            creature.prev = false;
         }
     };
 
-    action_def photosynthesize = [this](leash it) {
-        if ((*it).energy > 0) {
-            (*it).energy += ecosystem.countEmptyAdjacent((*it).x, (*it).y) - 1;
-            (*it).prev = true;
+    action_def photosynthesize = [this](Creature& creature) {
+        if (creature.energy > 0) {
+            creature.energy += ecosystem.countEmptyAdjacent(creature.x, creature.y) - 1;
+            creature.prev = true;
         } else {
-            (*it).prev = false;
+            creature.prev = false;
         }
     };
 
-    action_def reproduce = [this](leash it) {
-        if ((*it).energy > (*it).dna.size() + (*it).prev) {
-            auto empty_adjacent = ecosystem.emptyAdjacent((*it).x, (*it).y);
+    action_def reproduce = [this](Creature& creature) {
+        if (creature.energy > creature.dna.size() + creature.prev) {
+            auto empty_adjacent = ecosystem.emptyAdjacent(creature.x, creature.y);
             if (!empty_adjacent.empty()) {
-                (*it).energy -= (*it).dna.size() + (*it).prev / 2;
+                creature.energy -= creature.dna.size() + creature.prev;
                 auto [new_x, new_y] = empty_adjacent[randGen.next() % empty_adjacent.size()];
-                Creature new_creature((*it).dna, (*it).color, (*it).prev / 2, new_x, new_y, randGen.next() % 4 + 1, (*it).chunkIdx);
-                ecosystem.cells(new_x, new_y) = &new_creature;
-                if ((*it).chunkIdx == getChunkIdx(new_x, new_y)) {
-                    creatures[(*it).chunkIdx(0)].push_front(new_creature);
-                }
-                (*it).prev = true;
+                this -> placeNewborn(creature.dna, creature.color, creature.chunkId, new_x, new_y, creature.prev);
+                creature.prev = true;
+            } else {
+                creature.prev = false;
             }
+        } else {
+            creature.prev = false;
         }
-        (*it).prev = false;
     };
 
     static const auto actions = std::array<action_def, 12> {
@@ -132,70 +182,55 @@ void EcosystemSupervisor::readDna(std::list<Creature>::iterator& it) {
         reproduce
     };
 
-    auto dna_adaptor = (*it).dnaAdaptor;
-    if (dna_adaptor == (*it).dna.end()) {
-        dna_adaptor = (*it).dna.begin();
-    }
+    uint8_t action;
 
-    uint8_t action = static_cast<uint8_t>(*dna_adaptor);
-    std::cout << (uint)action << " ";
-    while ((action < 8 || !(*it).prev) && dna_adaptor != (*it).dna.end()) {
-        actions[action](it);
-        action = static_cast<uint8_t>(*++dna_adaptor);
-    }
+    do {
+        action = static_cast<uint8_t>((*it).dna[(*it).dnaAdapter++]);
+        actions[action](*it);
+    } while ((!(action >= 8 && (*it).prev)) && (*it).dnaAdapter < (*it).dna.size());
 
-    if ((*it).energy-- <= 0) {
-        kill(*it);
+    if ((*it).dnaAdapter == (*it).dna.size()) {
+        (*it).dnaAdapter = 0;
+    }
+    
+    (*it).energy--;
+    if ((*it).energy < 0) {
+        auto erease_it = it++;
+        creatures[(*erease_it).chunkId.second].erase(erease_it);
+    } else if (move_flag) {
+        checkChunkBounds(it);
+    } else {
+        ++it;
     }
 }
 
 void EcosystemSupervisor::processChunk(uint chunk_idx_1) {
     for (auto it = creatures[chunk_idx_1].begin(); it != creatures[chunk_idx_1].end();) {
         if ((*it).alive) {
-            readDna(it);
-            ++it;
+            doAction(it);
         } else {
-            auto erease_it = it;
-            ++it;
+            auto erease_it = it++;
             creatures[chunk_idx_1].erase(erease_it);
         }
     }
 } 
 
-void EcosystemSupervisor::checkLost(uint x, uint y, uint chunk_idx_1) {
-    if (ecosystem.cells(x, y) != nullptr) {
-        auto creature = *(ecosystem.cells(x, y));
-        if (creature.chunkIdx[0] != id || creature.chunkIdx[1] != chunk_idx_1) {
-            creature.chunkIdx[0] = id;
-            creature.chunkIdx[1] = chunk_idx_1;
-            creatures[chunk_idx_1].push_front(creature);
+void EcosystemSupervisor::processExchangeBuffers() {
+    for (uint chunk_id_1 = 0; chunk_id_1 < 4; ++chunk_id_1) {
+        while (!internalExchangeBuffer[chunk_id_1].empty()) {
+            auto it = internalExchangeBuffer[chunk_id_1].begin();
+            creatures[chunk_id_1].push_front(*it);
+            ecosystem.cells((*it).x, (*it).y) = &(*creatures[chunk_id_1].begin());
+            internalExchangeBuffer[chunk_id_1].pop_front();
         }
     }
-}
-    
-void EcosystemSupervisor::manageLostOnes() {
-    for (uint x_pos : {0, 1}) {
-        for (uint y_pos : {0, 1}) {
-            uint chunk_idx_1 = x_pos + 2 * y_pos;
 
-            uint i = xOrigin + xSize / 2 * x_pos;
-            uint j = yOrigin + ySize / 2 * y_pos;
-            for (; i < xOrigin + xSize / 2 + (xSize - xSize / 2) * x_pos; ++i) {
-                checkLost(i, j, chunk_idx_1);
-            }
-            --i;
-            for (; j < yOrigin + ySize / 2 + (ySize - ySize / 2) * y_pos; ++j) {
-                checkLost(i, j, chunk_idx_1);
-            }
-            --j;
-            for (; i > xOrigin + xSize / 2 * x_pos; --i) {
-                checkLost(i, j, chunk_idx_1);
-            }
-            checkLost(i, j, chunk_idx_1);
-            for (; j > yOrigin + ySize / 2 * y_pos; --j) {
-                checkLost(i, j, chunk_idx_1);
-            }
-            checkLost(i, j, chunk_idx_1);
+    for (uint chunk_id_0 = 0; chunk_id_0 < threadRows * threadCols; ++chunk_id_0) {
+        while (!externalExchangeBuffer(id, chunk_id_0).empty()) {
+            auto it = externalExchangeBuffer(id, chunk_id_0).begin();
+            creatures[(*it).chunkId.first].push_front(*it);
+            ecosystem.cells((*it).x, (*it).y) = &(*creatures[(*it).chunkId.first].begin());
+            externalExchangeBuffer(id, chunk_id_0).pop_front();
         }
     }
 }
@@ -210,16 +245,25 @@ void EcosystemSupervisor::renderChunks() {
     }
 }
 
-EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, uint thread_rows, uint thread_cols, uint seed):
-    ecosystem(ecosystem), randGen(seed + id) {
+void EcosystemSupervisor::addFirstLife(const Creature& creature) {
+    if (creature.chunkId.first == id) {
+        creatures[creature.chunkId.second].push_front(creature);
+        ecosystem.cells(creature.x, creature.y) = &(*creatures[creature.chunkId.second].begin());
+    }
+}
+
+EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer,
+    uint thread_rows, uint thread_cols, uint seed): ecosystem(ecosystem), externalExchangeBuffer(externalExchangeBuffer),
+    randGen(seed + id), threadRows(thread_rows), threadCols(thread_cols) {
     uint threads = thread_rows * thread_cols; 
     id = omp_get_thread_num();
 
     xSize = ecosystem.cells.rows() / thread_rows;
     ySize = ecosystem.cells.cols() / thread_cols;
 
-    xOrigin = xSize * (id / thread_rows);
-    yOrigin = ySize * (id % thread_rows);
+    xOrigin = xSize * (id / thread_cols);
+    yOrigin = ySize * (id % thread_cols);
 
     creatures = std::vector<std::list<Creature>>(4, std::list<Creature>());
+    internalExchangeBuffer = std::vector<std::list<Creature>>(4, std::list<Creature>());
 }
