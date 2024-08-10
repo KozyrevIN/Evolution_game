@@ -20,8 +20,8 @@ private:
 
     //supervisor's control region
     uint id;
-    uint threadRows;
-    uint threadCols;
+    uint threadsX;
+    uint threadsY;
 
     uint xOrigin;
     uint yOrigin;
@@ -54,5 +54,5 @@ protected:
     void addFirstLife(const Creature& creature);
 
 public:
-    EcosystemSupervisor(Ecosystem& ecosystem, Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer, uint thread_rows, uint thread_cols, uint seed);
+    EcosystemSupervisor(Ecosystem& ecosystem, Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer, uint threads_x, uint threads_y, uint seed);
 };

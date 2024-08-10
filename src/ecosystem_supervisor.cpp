@@ -10,7 +10,13 @@
 
 //chunk transition mechanism
 std::pair<uint, uint> EcosystemSupervisor::getChunkId(uint x, uint y) {
-    return std::make_pair((x / xSize) * threadCols + (y / ySize), (x - (x / xSize) * xSize) / (xSize / 2) * 2 + (y - (y / ySize) * ySize) / (ySize / 2));
+    uint x_id = x / xSize;
+    uint y_id = y / ySize;
+ 
+    uint x_from_origin = x - x_id * xSize;
+    uint y_from_origin = y - y_id * ySize;
+
+    return std::make_pair(y_id * threadsX + x_id, (y_from_origin >= ySize / 2) * 2 + (x_from_origin >= xSize / 2));
 }
 
 void EcosystemSupervisor::putToInternalBuffer(std::list<Creature>::iterator& it, uint chunk_id_1) {
@@ -196,6 +202,7 @@ void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it) {
     (*it).energy--;
     if ((*it).energy < 0) {
         auto erease_it = it++;
+        ecosystem.cells((*erease_it).x, (*erease_it).y) = nullptr;
         creatures[(*erease_it).chunkId.second].erase(erease_it);
     } else if (move_flag) {
         checkChunkBounds(it);
@@ -225,7 +232,7 @@ void EcosystemSupervisor::processExchangeBuffers() {
         }
     }
 
-    for (uint chunk_id_0 = 0; chunk_id_0 < threadRows * threadCols; ++chunk_id_0) {
+    for (uint chunk_id_0 = 0; chunk_id_0 < threadsX * threadsY; ++chunk_id_0) {
         while (!externalExchangeBuffer(id, chunk_id_0).empty()) {
             auto it = externalExchangeBuffer(id, chunk_id_0).begin();
             creatures[(*it).chunkId.first].push_front(*it);
@@ -253,16 +260,16 @@ void EcosystemSupervisor::addFirstLife(const Creature& creature) {
 }
 
 EcosystemSupervisor::EcosystemSupervisor(Ecosystem& ecosystem, Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer,
-    uint thread_rows, uint thread_cols, uint seed): ecosystem(ecosystem), externalExchangeBuffer(externalExchangeBuffer),
-    randGen(seed + id), threadRows(thread_rows), threadCols(thread_cols) {
-    uint threads = thread_rows * thread_cols; 
+    uint threads_x, uint threads_y, uint seed): ecosystem(ecosystem), externalExchangeBuffer(externalExchangeBuffer),
+    randGen(seed + id), threadsX(threads_x), threadsY(threads_y) {
+    uint threads = threads_x * threads_y; 
     id = omp_get_thread_num();
 
-    xSize = ecosystem.cells.rows() / thread_rows;
-    ySize = ecosystem.cells.cols() / thread_cols;
+    xSize = ecosystem.cells.rows() / threads_x;
+    ySize = ecosystem.cells.cols() / threads_y;
 
-    xOrigin = xSize * (id / thread_cols);
-    yOrigin = ySize * (id % thread_cols);
+    xOrigin = xSize * (id % threads_x);
+    yOrigin = ySize * (id / threads_x);
 
     creatures = std::vector<std::list<Creature>>(4, std::list<Creature>());
     internalExchangeBuffer = std::vector<std::list<Creature>>(4, std::list<Creature>());

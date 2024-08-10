@@ -24,13 +24,16 @@ void EvolutionGameApp::run(uint seed) {
     {
         uint threads_num = omp_get_num_threads();
         uint thread_id = omp_get_thread_num();
-        auto [thread_rows, thread_cols] = closestDivisors(threads_num);
+        auto [threads_x, threads_y] = closestDivisors(threads_num);
+        if (ecosystem.cells.rows() < ecosystem.cells.cols()) {
+            std::swap(threads_x, threads_y);
+        }
 
         if (thread_id == 0) {
             externalExchangeBuffer = Eigen::MatrixX<std::list<Creature>>::Constant(threads_num, threads_num, std::list<Creature>());
         }
 
-        auto supervisor = EcosystemSupervisor(ecosystem, externalExchangeBuffer, thread_rows, thread_cols, seed);
+        auto supervisor = EcosystemSupervisor(ecosystem, externalExchangeBuffer, threads_x, threads_y, seed);
 
         {
             std::vector<Action> dna = {Action::reproduce, Action::nothing, Action::photosynthesize};
@@ -46,6 +49,8 @@ void EvolutionGameApp::run(uint seed) {
         }
 
         while (ecosystem.window.isOpen()) {
+
+            #pragma omp barrier
             if (thread_id == 0) {
                 ecosystem.renderWindow();
 

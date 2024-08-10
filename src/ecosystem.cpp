@@ -48,20 +48,21 @@ void Ecosystem::renderCreature(Creature& creature) {
 }
 
 void Ecosystem::renderWindow() {
+    window.clear(sf::Color::Black);
     textureGP.update(reinterpret_cast<uint8_t*>(textureCP.data()));
     sf::Sprite sprite(textureGP);
     sprite.setScale(window.getSize().x / textureGP.getSize().x, window.getSize().y / textureGP.getSize().y);
     sprite.setPosition(0, 0);
     window.draw(sprite);
     window.display();
-    textureCP.setZero();
+    textureCP.setConstant(255);
 }
 
 Ecosystem::Ecosystem(uint cells_x, uint cells_y, uint cell_size) {
     cells = Eigen::MatrixX<Creature*>::Constant(cells_x, cells_y, nullptr);
     window.create(sf::VideoMode(cells_x * cell_size, cells_y * cell_size), "Evolution_game");
     window.setFramerateLimit(60);
-    textureCP = Eigen::MatrixX<uint32_t>::Constant(cells_x, cells_y, 0);
+    textureCP = Eigen::MatrixX<uint32_t>::Constant(cells_x, cells_y, 255);
     textureGP = sf::Texture();
     textureGP.create(cells_x, cells_y);
 }
