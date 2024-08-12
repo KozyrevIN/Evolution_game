@@ -16,11 +16,13 @@ add_executable(main
         src/split_mix_64.cpp
         src/ecosystem.cpp
         src/ecosystem_supervisor.cpp
+        src/fps_counter.cpp
         src/evolution_game_app.cpp)
 target_link_libraries(main PRIVATE sfml-graphics)
-target_compile_features(main PRIVATE cxx_std_17)
+target_compile_features(main PRIVATE cxx_std_20)
 
-set(CMAKE_CXX_FLAGS "-fopenmp")
+#-O3 -DNDEBUG
+set(CMAKE_CXX_FLAGS "-fopenmp -O3 -DNDEBUG")
 
 if(WIN32)
     add_custom_command(

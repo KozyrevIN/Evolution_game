@@ -1,4 +1,5 @@
 #include <iostream>
+#include <format>
 
 #ifndef evolution_game_app_header
     #define evolution_game_app_header
@@ -7,6 +8,7 @@
 
 EvolutionGameApp::EvolutionGameApp(uint cells_x, uint cells_y, uint cell_size): ecosystem(cells_x, cells_y, cell_size) {
     externalExchangeBuffer = Eigen::MatrixX<std::list<Creature>>();
+    fps_counter = FpsCounter();
 }
 
 std::pair<int, int> closestDivisors(uint n) {
@@ -37,14 +39,13 @@ void EvolutionGameApp::run(uint seed) {
 
         {
             std::vector<Action> dna = {Action::reproduce, Action::nothing, Action::photosynthesize};
-            uint32_t color = UINT32_MAX;
+            uint32_t color = 0xFF888888;
             uint x = ecosystem.cells.rows() / 2;
             uint y = ecosystem.cells.cols() / 2;
-            int energy = 1;
+            int energy = 10;
             uint8_t direction = 1;
-            auto chunk_id = supervisor.getChunkId(x, y);
 
-            Creature first_life = Creature(dna, color, energy, direction, x, y, chunk_id);
+            Creature first_life = Creature(dna, color, energy, direction, x, y);
             supervisor.addFirstLife(first_life);
         }
 
@@ -52,7 +53,7 @@ void EvolutionGameApp::run(uint seed) {
 
             #pragma omp barrier
             if (thread_id == 0) {
-                ecosystem.renderWindow();
+                ecosystem.renderWindow(std::format("{:.1f}", fps_counter.getFps()));
 
                 for (auto event = sf::Event{}; ecosystem.window.pollEvent(event);) {
                     if (event.type == sf::Event::Closed)
@@ -60,11 +61,10 @@ void EvolutionGameApp::run(uint seed) {
                 }
             }
 
-            for (uint chunk_id_1 = 0; chunk_id_1 < 3; ++chunk_id_1) {
+            for (uint chunk_id_1 = 0; chunk_id_1 < 4; ++chunk_id_1) {
                 supervisor.processChunk(chunk_id_1);
                 #pragma omp barrier
             }
-            supervisor.processChunk(3);
 
             supervisor.processExchangeBuffers();
             supervisor.renderChunks();

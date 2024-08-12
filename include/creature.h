@@ -3,6 +3,7 @@
 
 using uint = unsigned int;
 
+//list of actions which a creature can make
 enum class Action: uint8_t { 
     nothing,
     negation,
@@ -16,7 +17,8 @@ enum class Action: uint8_t {
     rotate,
     move_forward,
     photosynthesize,
-    reproduce
+    reproduce,
+    attack
 };
 
 struct Creature {
@@ -33,11 +35,8 @@ struct Creature {
 
     //reading dna
     uint dnaAdapter;
-    uint prev;
-
-    //creature position in term of supervisors
-    std::pair<uint, uint> chunkId;
+    uint8_t prev;
 
     //constructor
-    Creature(const std::vector<Action>& dna, uint32_t color, int energy, uint8_t direction, uint x, uint y, std::pair<uint, uint> chunk_id);
+    Creature(const std::vector<Action>& dna, uint32_t color, int energy, uint8_t direction, uint x, uint y);
 };
