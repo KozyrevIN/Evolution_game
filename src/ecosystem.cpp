@@ -86,15 +86,6 @@ Ecosystem::Ecosystem(uint cells_x, uint cells_y, uint cell_size) {
     halftone = sf::RectangleShape(sf::Vector2f(cells_x * cell_size, cells_y * cell_size));
     halftone.setFillColor(sf::Color(0, 0, 0, 200));
 
-    horyzontalBlurShader.loadFromFile("../../shaders/gaussian_blur.frag", sf::Shader::Fragment);
-    verticalBlurShader.loadFromFile("../../shaders/gaussian_blur.frag", sf::Shader::Fragment);
-
-    horyzontalBlurShader.setUniform("offsetFactor", sf::Glsl::Vec2(1.0f / (cells_x * cell_size), 0));
-    horyzontalBlurShader.setUniform("source", sf::Shader::CurrentTexture);
-
-    verticalBlurShader.setUniform("offsetFactor", sf::Glsl::Vec2(0, 1.0f / (cells_y * cell_size)));
-    verticalBlurShader.setUniform("source", sf::Shader::CurrentTexture);
-
     glowShader.loadFromFile("../../shaders/glow.frag", sf::Shader::Fragment);
     glowShader.setUniform("source", sf::Shader::CurrentTexture);
     glowShader.setUniform("offsetFactor", sf::Glsl::Vec2(1.0f / (cells_x * cell_size), 1.0f / (cells_y * cell_size)));

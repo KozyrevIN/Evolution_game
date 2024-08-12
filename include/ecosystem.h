@@ -19,8 +19,6 @@ private:
     sf::RectangleShape halftone;
 
     sf::Shader glowShader;
-    sf::Shader horyzontalBlurShader;
-    sf::Shader verticalBlurShader;
 
     //helper functions
     bool isEmpty(uint x, uint y);
