@@ -13,6 +13,7 @@ enum class Action: uint8_t {
     mul_2,
     div_2,
     random,
+    count_empty_adjacent,
 
     rotate,
     move_forward,

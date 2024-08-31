@@ -69,6 +69,7 @@ void Ecosystem::renderWindow(std::string display_string) {
     window.clear(sf::Color(0, 0, 0, 0));
     window.draw(sf::Sprite(frame.getTexture()), &glowShader);
     window.display();
+    
 
     textureCP.setConstant(0x00000000);
 }
@@ -76,7 +77,7 @@ void Ecosystem::renderWindow(std::string display_string) {
 Ecosystem::Ecosystem(uint cells_x, uint cells_y, uint cell_size) {
     cells = Eigen::MatrixX<Creature*>::Constant(cells_x, cells_y, nullptr);
 
-    window.create(sf::VideoMode(cells_x * cell_size, cells_y * cell_size), "Evolution_game", sf::Style::Close);
+    window.create(sf::VideoMode(cells_x * cell_size, cells_y * cell_size), "Evolution_game", /*sf::Style::Fullscreen |*/ sf::Style::Close);
     frame.create(cells_x * cell_size, cells_y * cell_size);
     window.setFramerateLimit(30);
     textureCP = Eigen::MatrixX<uint32_t>::Constant(cells_x, cells_y, 0x00000000);

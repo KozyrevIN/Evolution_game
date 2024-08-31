@@ -48,12 +48,16 @@ inline void EcosystemSupervisor::emptyInternalBuffer(uint to_id_1) {
 inline void EcosystemSupervisor::emptyExternalBuffer(uint from_id_0) {
     while (!externalExchangeBuffer(id, from_id_0).empty()) {
         auto it = externalExchangeBuffer(id, from_id_0).begin();
-        uint x = (*it).x;
-        uint y = (*it).y;
-        auto to_id = getChunkId(x, y);
-        creatures[to_id.second].push_front(*it);
-        ecosystem.cells(x, y) = &(*creatures[to_id.second].begin());
-        externalExchangeBuffer(id, from_id_0).pop_front();
+        if ((*it).alive) {
+            uint x = (*it).x;
+            uint y = (*it).y;
+            auto to_id = getChunkId(x, y);
+            creatures[to_id.second].push_front(*it);
+            ecosystem.cells(x, y) = &(*creatures[to_id.second].begin());
+            externalExchangeBuffer(id, from_id_0).pop_front();
+        } else {
+            externalExchangeBuffer(id, from_id_0).pop_front();
+        }
     }
 }
 
@@ -80,12 +84,10 @@ inline void EcosystemSupervisor::kill(Creature& creature) {
 }
 
 inline uint32_t dna_hash(const std::vector<Action>& dna) {
-    const uint8_t num_genes = 13;
-    const uint8_t renorm_value = 128 / num_genes;
     Eigen::Array3<uint8_t> color_components = {0, 0, 0};
 
     for (uint i = 0; i < dna.size(); i++) {
-        color_components(i % 3) += static_cast<uint8_t>(dna[i]) * renorm_value;
+        color_components(i % 3) += static_cast<uint8_t>(dna[i]);
     }
 
     uint sum = color_components.sum();
@@ -98,13 +100,13 @@ inline uint32_t dna_hash(const std::vector<Action>& dna) {
 }
 
 inline std::pair<std::vector<Action>, uint32_t> EcosystemSupervisor::mutate(const std::vector<Action>& dna, uint32_t color) {
-    const uint8_t num_genes = 13;
+    const uint8_t num_genes = 14;
     const uint max_length = 0xFFF;
 
     uint random = randGen.next();
 
-    if (random % 2 == 0) {
-        random /= 2;
+    if (random % 4 == 0) {
+        random /= 4;
         std::vector<Action> new_dna = dna;
 
         auto it = new_dna.begin();
@@ -112,19 +114,28 @@ inline std::pair<std::vector<Action>, uint32_t> EcosystemSupervisor::mutate(cons
         random /= max_length;
         std::advance(it, pos);
 
+        uint8_t green = (color % 0xFF000000) / 0x00FF0000;
+        uint8_t blue = (color % 0x00FF0000) / 0x0000FF00;
+        uint8_t red = color % 0x0000FF00;
+
         if (random % 8 == 0 && new_dna.size() < max_length) {
             //adds new gene to dna
             new_dna.insert(it, static_cast<Action>(random % num_genes));
-            color = dna_hash(new_dna); 
+            green += random % num_genes;
+            //color = dna_hash(new_dna); 
         } else if (random % 8 == 1) {
             //removes gene from dna
+            blue += static_cast<uint8_t>(*it);
             new_dna.erase(it);
-            color = dna_hash(new_dna); 
+            //color = dna_hash(new_dna); 
         } else if (random % 8 == 2) {
             //changes gene in dna to random
             *it = static_cast<Action>(random % num_genes);
+            red += random % num_genes;
         }
 
+
+        color = 0xFF000000 + 0x00FF0000 * blue + 0x0000FF00 * green + 0x000000FF * red;
         return std::make_pair(new_dna, color);
     } else {
         return std::make_pair(dna, color);
@@ -185,13 +196,16 @@ inline void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it, uin
             case 7: //random
                 creature.prev = (creature.prev > 0) * (randGen.next() % 254 + 1);
                 break;
+            case 8: //count empty adjacent
+                creature.prev = ecosystem.countEmptyAdjacent(creature.x, creature.y);
+                break;
 
             //end of logical actions
-            case 8: //rotate
+            case 9: //rotate
                 creature.direction = (creature.direction - 1 + creature.prev) % 4 + 1;
                 creature.prev = true;
                 break;
-            case 9:  //move_forward 
+            case 10:  //move_forward 
                 if (creature.prev) {
                     uint new_x = creature.x + (creature.direction == 1) - (creature.direction == 3);
                     uint new_y = creature.y + (creature.direction == 2) - (creature.direction == 4);
@@ -207,7 +221,7 @@ inline void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it, uin
                     }
                 }
                 break;
-            case 10: //photosynthesize
+            case 11: //photosynthesize
                 if (creature.prev && creature.energy > 0) {
                     creature.energy += ecosystem.countEmptyAdjacent(creature.x, creature.y) - 4;
                     creature.prev = true;
@@ -215,7 +229,7 @@ inline void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it, uin
                     creature.prev = false;
                 }
                 break;
-            case 11: //reproduce
+            case 12: //reproduce
                 if (creature.prev && creature.energy > creature.dna.size() + creature.prev) {
                     auto empty_adjacent = ecosystem.emptyAdjacent(creature.x, creature.y);
                     if (!empty_adjacent.empty()) {
@@ -230,20 +244,22 @@ inline void EcosystemSupervisor::doAction(std::list<Creature>::iterator& it, uin
                     creature.prev = false;
                 }
                 break;
-            case 12: //attack
+            case 13: //attack
                 if (creature.prev && creature.energy > 2) {
+                    creature.prev = false;
                     uint attack_x = creature.x + (creature.direction == 1) - (creature.direction == 3);
                     uint attack_y = creature.y + (creature.direction == 2) - (creature.direction == 4);
 
                     if (ecosystem.containsCreature(attack_x, attack_y)) {
                         if(creature.energy > ecosystem.cells(attack_x, attack_y) -> energy) {
-                            creature.energy += ecosystem.cells(attack_x, attack_y) -> energy + ecosystem.cells(attack_x, attack_y) -> dna.size();
+                            creature.energy += ecosystem.cells(attack_x, attack_y) -> energy + ecosystem.cells(attack_x, attack_y) -> dna.size() - 2;
                             kill(*ecosystem.cells(attack_x, attack_y));
+                            creature.prev = true;
                         }
                     }
                 } 
         }
-    } while (!(action >= 8 && (creature.prev)) && creature.dnaAdapter < creature.dna.size());
+    } while (!(action >= 9 && (creature.prev)) && creature.dnaAdapter < creature.dna.size());
 
     if (creature.dnaAdapter == creature.dna.size()) {
         creature.dnaAdapter = 0;

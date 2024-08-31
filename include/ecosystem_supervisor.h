@@ -17,6 +17,7 @@ private:
     Ecosystem& ecosystem;
     Eigen::MatrixX<std::list<Creature>>& externalExchangeBuffer;
     std::vector<std::list<Creature>> creatures;
+    #pragma omp shared(creatures)
 
     //supervisor's control region
     uint id;
@@ -33,6 +34,7 @@ private:
 
     //chunk transition mechanism
     std::vector<std::list<Creature>> internalExchangeBuffer;
+    #pragma omp shared(internalExchangeBuffer)
     inline std::pair<uint, uint> getChunkId(uint x, uint y);
 
     inline void moveToInternalBuffer(std::list<Creature>::iterator& it, uint to_id_1, uint from_id_1);

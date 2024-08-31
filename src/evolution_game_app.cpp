@@ -38,7 +38,8 @@ void EvolutionGameApp::run(uint seed) {
         auto supervisor = EcosystemSupervisor(ecosystem, externalExchangeBuffer, threads_x, threads_y, seed);
 
         {
-            std::vector<Action> dna = {Action::reproduce, Action::nothing, Action::photosynthesize};
+            std::vector<Action> dna = {Action::reproduce, Action::nothing,
+                                       Action::photosynthesize};
             uint32_t color = 0xFF888888;
             uint x = ecosystem.cells.rows() / 2;
             uint y = ecosystem.cells.cols() / 2;
